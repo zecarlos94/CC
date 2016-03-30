@@ -1,7 +1,10 @@
 all: clean exceptions musicmanager users server thread user client pdu
 
 # build for when clean fails.
-build: musicmanager users server thread user
+build: exceptions musicmanager users server thread user
+
+exceptions: src/exceptions/*.java
+	cd src/ && cd exceptions/  && javac *.java
 
 musicmanager: src/MusicManager.java
 	cd src/ && javac MusicManager.java
@@ -18,8 +21,6 @@ user: src/User.java src/UserAux.java
 users: src/Users.java
 	cd src/ && javac Users.java
 
-exceptions: src/exceptions/*.java
-	cd src/exceptions && javac *.java
 
 client: src/Client.java
 	cd src/ && javac Client.java
@@ -27,6 +28,8 @@ client: src/Client.java
 pdu: src/PDU.java
 		cd src/ && javac PDU.java
 
+fast: 
+	javac src/exceptions/*.java src/*.java
 # check for todos in the source code.
 todos:
 	grep -r -n "TODO" src/
