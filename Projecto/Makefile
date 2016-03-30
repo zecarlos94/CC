@@ -1,7 +1,7 @@
 all: clean exceptions musicmanager users server thread user client pdu
 
 # build for when clean fails.
-build: exceptions musicmanager users server thread user
+build: exceptions musicmanager users server thread client
 
 exceptions: src/Exceptions/*.java
 	cd src/ && cd Exceptions/  && javac *.java
@@ -15,12 +15,8 @@ server: src/Server.java
 thread: src/UserThread.java
 	cd src/ && javac UserThread.java
 
-user: src/User.java src/UserAux.java
-	cd src/ && javac User.java UserAux.java
-
 users: src/Users.java
 	cd src/ && javac Users.java
-
 
 client: src/Client.java
 	cd src/ && javac Client.java
