@@ -1,3 +1,3 @@
 # CC
 
-Project undetermined 
+Project undetermined. 
