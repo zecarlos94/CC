@@ -1,7 +1,7 @@
 /** Thread atribuida ao user.  */
 
 import java.net.Socket;
-import java.io.BufferedReader;
+import java.io.BufferedOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
@@ -15,54 +15,41 @@ import static java.lang.Float.parseFloat;
 class UserThread extends Thread {
   // BufferedReader para ler do socket.
   private Socket          socket;
-  private BufferedReader  br;
-  private PrintWriter     out;
+  private BufferedOutputStream  bos;
   private Server          server;
-  private String          username;
 
   /** Construtor com argumentos.
    *  @param s Socket por onde comunicar. */
   public UserThread (Socket socket, Server server) throws IOException {
     this.socket = socket;
-    this.br     = new BufferedReader(new InputStreamReader(
-          socket.getInputStream(), "UTF-8"));
-    this.out    = new PrintWriter(socket.getOutputStream(), true);
+    this.bos = new BufferedOutputStream( socket.getOuputStream() ); 
+    InputStream inputStream = socket.getInputStream();
     this.server = server;
   }
 
   public void run () {
     // Input vindo do user.
-    String    in;
-    String[]  splitted;
-    boolean   r;
+    
+    byte[] in = new byte[PDU.MAX_SIZE]; // PDU header Size
 
     // Ler do socket e fazer eco.
     try {
       // Primeira operacao a realizar, ou login ou registro.
-      in = br.readLine();
-      splitted  = in.split("\\s+");
 
-      if (splitted[0].equals("r"))
-        server.registerUser(splitted[1], splitted[2]);
-      else if(splitted[0].equals("l"))
-        server.loginUser(splitted[1], splitted[2]);
+      PDU pdu = new PDU(inputStream.read());
 
-      // Imprime se não houver erro
-      out.println("OK");
-      out.flush();
+
+      switch(pdu.type){
+	case 1 :
+		pdu.loginData();
+
+      }
+	
+     server.registerUser(id,ip,porta);
 
       username = splitted[1];
-      server.updateSocket(username, socket);
 
-      while ((in = br.readLine()) != null) {
-        try{
-          if(in.equals("cliente"))
-            servirUsers();
-        } catch(IOException e){
-          out.println("Erro:" + e);
-          out.flush();
-        }
-      }
+
     }
     catch (IOException e) {
       System.out.println("Exception caught when trying to listen on port "

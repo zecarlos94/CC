@@ -53,20 +53,6 @@ public class Server {
     users.userSockets.put(username, socket);
   }
 
-  /**
-   *  Fazer login na plataforma.
-   *
-   *  @param  user Username.
-   *  @param  pass Password.
-   */
-  public void loginUser (String user, String pass) throws UserAlreadyInException {
-    boolean loggedInOK = users.login(user, pass);
-
-    if (loggedInOK)
-      System.out.println("User '" + user + "' ligou");
-    else
-      throw new UserAlreadyInException("Outro utilizador ligado com mesmas credencias");
-  }
 
   /**
    *  Registar na plataforma.
@@ -76,7 +62,7 @@ public class Server {
    *  @return true se o registo for feito com sucesso,
    *          false caso contrario.
    */
-  public void registerUser (String user, String pass) throws UserAlreadyRegisteredException {
+  public void registerUser (String user, String id, int porta) throws UserAlreadyRegisteredException {
     boolean registeredOK = users.register(user, pass);
 
     if (registeredOK)
@@ -85,24 +71,9 @@ public class Server {
       throw new UserAlreadyRegisteredException("Utilizador já registado");
   }
 
-  public void logout (String user) {
-    users.logout(user);
+  public void unRegister (String user) {
+    users.unRegister(user);
     System.out.println("User '" + user +"' desligou");
   }
 
-  /**
-   *    Enviar mensagem a utilizador
-   * de encontro
-   * @param username do cliente
-   * @param mensagem a enviar
-   */
-  public void notifyUser(String username, String msg){
-    Socket socket = users.userSockets.get(username);
-    try {
-      PrintWriter pw = new PrintWriter(socket.getOutputStream());
-
-      pw.println(msg);
-      pw.flush();
-    } catch (Exception e) {}
-  }
 }
