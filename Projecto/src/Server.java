@@ -3,12 +3,9 @@
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.HashMap;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import java.lang.System;
-import java.lang.Runtime;
 
 import Exceptions.UserAlreadyRegisteredException;
 import Exceptions.UserAlreadyInException;
@@ -21,6 +18,7 @@ public class Server {
   /**
    *  Construtor parametrizado.
    *  @param port Port na qual ligar o servidor.
+     * @throws java.io.IOException
    */
   public Server (int port) throws IOException {
     this.server = new ServerSocket(port);
@@ -37,6 +35,7 @@ public class Server {
       System.out.println("Servidor online");
 
       while ((socket = server.accept()) != null) {
+          System.out.println("Conecçao socket aceite");
         user = new UserThread(socket, this);
         user.start();
       }
@@ -59,21 +58,36 @@ public class Server {
    *
    *  @param  user Nome de utilizador.
    *  @param  pass Password para o utilizador.
-   *  @return true se o registo for feito com sucesso,
-   *          false caso contrario.
+     * @param ip
+     * @param porta
+     * @throws Exceptions.UserAlreadyRegisteredException
+     * @throws Exceptions.UserAlreadyInException
    */
-  public void registerUser (String user, String id, int porta) throws UserAlreadyRegisteredException {
+  public void registerUser (String user,String pass, String ip, int porta) 
+    throws UserAlreadyRegisteredException , UserAlreadyInException{
     boolean registeredOK = users.register(user, pass);
 
     if (registeredOK)
       System.out.println("User '" + user + "' registou e ligou");
     else
       throw new UserAlreadyRegisteredException("Utilizador já registado");
+
+    loginUser(user,pass,ip,porta);
   }
 
-  public void unRegister (String user) {
-    users.unRegister(user);
-    System.out.println("User '" + user +"' desligou");
-  }
+ 
+  public void loginUser (String user, String pass,String ip,int porta) throws UserAlreadyInException {
+     boolean loggedInOK = users.login(user, pass,ip,porta);
+ 
+     if (loggedInOK)
+       System.out.println("User '" + user + "' ligou");
+     else
+       throw new UserAlreadyInException("Outro utilizador ligado com mesmas credencias");
+   }
+  
+   public void logoutUser (String user) {
+     users.logout(user);
+     System.out.println("User '" + user +"' desligou");
+   }
 
 }
