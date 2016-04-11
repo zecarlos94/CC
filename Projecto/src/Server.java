@@ -7,7 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 
-import Exceptions.UserAlreadyRegisteredException;
+import Exceptions.AuthenticationErrorException;
 import Exceptions.UserAlreadyInException;
 
 public class Server {
@@ -60,19 +60,30 @@ public class Server {
    *  @param  pass Password para o utilizador.
      * @param ip
      * @param porta
-     * @throws Exceptions.UserAlreadyRegisteredException
+     * @throws Exceptions.AuthenticationErrorException
      * @throws Exceptions.UserAlreadyInException
    */
   public void registerUser (String user,String pass, String ip, int porta) 
-    throws UserAlreadyRegisteredException , UserAlreadyInException{
-    boolean registeredOK = users.register(user, pass);
+    throws AuthenticationErrorException {
+      System.out.println("Checking if registed");
+      boolean isRegisted = users.isRegisted(user);
+      if(!isRegisted)
+        users.register(user, pass);
 
-    if (registeredOK)
+      System.out.println("Start users login");
+      boolean loggedInOK = users.login(user, pass, ip, porta);
+      
+      System.out.println("Ended user login:" + loggedInOK);
+      
+      if (loggedInOK)
+       System.out.println("User '" + user + "' ligou");
+      else
+        throw new AuthenticationErrorException("Credencias do utilizador erradas");
+      
+    
       System.out.println("User '" + user + "' registou e ligou");
-    else
-      throw new UserAlreadyRegisteredException("Utilizador já registado");
-
-    loginUser(user,pass,ip,porta);
+    
+   
   }
 
  

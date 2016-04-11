@@ -34,21 +34,36 @@ class Users {
    *          coincidirem, false em qualquer outro caso. */
   public Boolean login (String username, String password,String ip,int porta) {
     lock.lock();
+                    System.out.println("cfsfason");
+
     if (!users.containsKey(username)){
+                System.out.println("userrep");
+
       lock.unlock();
       return false;
     }
     else if (connected.get(username)){
+                System.out.println("con");
+
       lock.unlock();
       return false;
     }
     else {
       String storedPassword = users.get(username);
+                System.out.println("cdson");
 
       if (password.equals(storedPassword)) {
+        
+        System.out.println("cI");
         connected.put(username, true);
+                System.out.println("ports");
+
         ports.put(username,porta);
+                System.out.println("ips");
+
         ips.put(username,ip);
+
+                System.out.println("unlock");
 
         lock.unlock();
         return true;
@@ -58,6 +73,13 @@ class Users {
         return false;
       }
     }
+  }
+  
+  public Boolean isRegisted(String username){
+      lock.lock();
+      boolean r = users.containsKey(username);
+      lock.unlock();
+      return r;
   }
 
   /** Registar novo utilizador.
@@ -71,6 +93,7 @@ class Users {
     lock.lock();
     if (!users.containsKey(username)) {
       users.put(username, password);
+      
     //  connected.put(username, true);
       
       lock.unlock();

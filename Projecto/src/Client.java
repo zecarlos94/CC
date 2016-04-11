@@ -3,6 +3,7 @@
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import static java.lang.System.exit;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -32,7 +33,7 @@ public class Client {
       sc     = new Scanner(System.in);
 
          // Validar argumentos.
-        switch (validateArgs(args)) {
+     switch (validateArgs(args)) {
       // Login.
       case 0:
         
@@ -55,10 +56,13 @@ public class Client {
         break;
     }
 
+     
+     
   // antiga verificação de dados de login  aux.respostaCredenciais();
     printMenuInicialLogIn();
 
-    while (sc.hasNextLine()) {
+    boolean end = false;
+    while (sc.hasNextLine() && !end) {
       // Ler do stdin.
       // Opções do menu inicial: 0 cliente, 1 sair
 
@@ -70,30 +74,33 @@ public class Client {
              
               break;
           case 1:
-              System.out.println("Saiu");
-              socket.close();
-              
+            
               // LOGOUT
               byte[] pdu2 = PDU.sendRegPDU( 0 , args[1], args[2], ip, porta);
               os.write(pdu2);
               os.flush();
-              
-            
+                        
               break;
 
+          case 2:
+              System.out.println("Saiu");
+              end = true;
+              break;
+              
+              
           default:
               System.out.println("Opção inexistente");
               printMenuInicial();
               KO=true;
               break;
       }
-      if(!KO) printMenuInicialLogIn(); //para evitar a situação de apresentar duas vezes o menu qd ocorre "Opção inexistente"
+      // if(!KO) printMenuInicialLogIn(); //para evitar a situação de apresentar duas vezes o menu qd ocorre "Opção inexistente"
     }
     // Fechar ligacao e streams
     socket.close();
       os.close();
-      is.close();
- 
+      is.close();    
+    
   }
   //Qd se liga o user sem o servidor estar "online"
   catch (IOException e) {
@@ -113,7 +120,8 @@ public class Client {
       "***** ***** ***** *****\n" +
       "Escreva:\n" +
       "0 - Para pedir uma música\n" +
-      "1 - Para sair.\n");
+      "1 - Para fazer unregister.\n"+
+      "2 - Para sair\n");
   }
   /**
    *  Validar argumentos e retornar valor indicativo da operacao a realizar.
