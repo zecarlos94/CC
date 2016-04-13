@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import static java.lang.System.exit;
 import java.net.Socket;
+import java.net.InetAddress;
 import java.util.Scanner;
 
 public class Client {
@@ -17,8 +18,8 @@ public class Client {
   
   // TODO: Ask client ip/port or find progammaticly ?? 
   // valores atribuidos à sorte ( n sao usados para ja)
-  static String ip = "1322.2322.2313.1321"; 
-  static int porta = 2322; 
+  // static String ip = "1322.2322.2313.1321"; 
+  // static int porta = 2322; 
   
   
   public static void main (String args[]) throws IOException {
@@ -30,13 +31,17 @@ public class Client {
       socket = new Socket("localhost", hostPort);
       os = socket.getOutputStream();
       is = socket.getInputStream();
-      sc     = new Scanner(System.in);
+
+      InetAddress local = socket.getInetAddress();
+      String ip = local.getHostAddress();
+      int porta = socket.getLocalPort();
+
+      sc = new Scanner(System.in);
 
          // Validar argumentos.
      switch (validateArgs(args)) {
       // Login.
       case 0:
-        
         byte[] pdu = PDU.sendRegPDU( 1 , args[1], args[2], ip, porta);
         os.write(pdu);
         os.flush();
