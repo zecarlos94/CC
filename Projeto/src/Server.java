@@ -63,42 +63,43 @@ public class Server {
      * @throws Exceptions.AuthenticationErrorException
      * @throws Exceptions.UserAlreadyInException
    */
-  public void registerUser (String user,String pass, String ip, int porta) 
+  public void registerUser (String user,String pass, String ip, int porta)
     throws AuthenticationErrorException {
-      System.out.println("Checking if registed");
-      boolean isRegisted = users.isRegisted(user);
-      if(!isRegisted)
-        users.register(user, pass);
-
-      System.out.println("Start users login");
-      boolean loggedInOK = users.login(user, pass, ip, porta);
-      
-      System.out.println("Ended user login:" + loggedInOK);
-      
-      if (loggedInOK)
-       System.out.println("User '" + user + "' ligou");
-      else
-        throw new AuthenticationErrorException("Credencias do utilizador erradas");
-      
-    
-      System.out.println("User '" + user + "' registou e ligou");
-    
-   
+      System.out.println("Checking if registed...");
+      boolean isRegisted, isLoggedIn, loggedInOK, logOK;
+      isRegisted = users.isRegisted(user);
+      if(isRegisted) {
+        System.out.println("Is already registed in the system!");
+        isLoggedIn = users.isLoggedIn(user);
+        if(isLoggedIn) { System.out.println("Is already logged in the system!"); }
+        else {
+          System.out.println("Start users login");
+          loggedInOK = users.login(user, pass, ip, porta);
+          //loggedInOK é true caso seja true em todos os testes efetuados pelo login
+          System.out.println("Ended user login:" + loggedInOK);
+          if(loggedInOK) { System.out.println("User '" + user + "' ligou"); }
+          else { throw new AuthenticationErrorException("Credencias do utilizador erradas"); }
+        }
+      }
+      else {
+        // o método register faz o login logo no lado da classe Users
+        logOK = users.register(user, pass, ip, porta);
+        if(logOK) { System.out.println("User '" + user + "' registou e ligou"); }
+        else { throw new AuthenticationErrorException("Encontrou-se algo de errado no processo de registo"); }
+      }
   }
 
- 
+
   public void loginUser (String user, String pass,String ip,int porta) throws UserAlreadyInException {
-     boolean loggedInOK = users.login(user, pass,ip,porta);
- 
-     if (loggedInOK)
-       System.out.println("User '" + user + "' ligou");
-     else
-       throw new UserAlreadyInException("Outro utilizador ligado com mesmas credencias");
+     boolean loggedInOK = users.login(user, pass, ip, porta);
+     if (loggedInOK) { System.out.println("User '" + user + "' ligou"); }
+     else { throw new UserAlreadyInException("Outro utilizador ligado com mesmas credencias"); }
    }
-  
-   public void logoutUser (String user) {
-     users.logout(user);
-     System.out.println("User '" + user +"' desligou");
+
+  public void logoutUser (String username) {
+     boolean logOut;
+     logOut = users.logout(username);
+     System.out.println("User '" + username +"' desligou? " + logOut);
    }
 
 }
