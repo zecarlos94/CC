@@ -163,22 +163,53 @@ public class PDU {
          /**
          * 
          * @param info
-         * @return String[0] tipo = 1 se encontrou o ficheiro senao 0
-         *         String[1] numeroHosts = nº clientes com o ficheiro
-         *         String[2] ID = username do utilizador
-         *         String[3] IP = Ip do utilizador src com o ficheiro
-         *         String[4] porta = Porta do utilizador src
+         * @return lista com a informação de cada host
+         *         String[][0] ID = username do utilizador
+         *         String[][1] IP = Ip do utilizador src com o ficheiro
+         *         String[][2] porta = Porta do utilizador src
          *          
          */
-        public static String[] readConsultResponse(byte[] info){
-            String[] r = readCampos(info,5);
+        public static String[][] readConsultResponse(byte[] info){
+            // n tiver o ficheiro
+            if( (int)info[FIXED_HEADER_SIZE] == 0) return null;
+            //se numeroHosts > 255 program bugs 
+            int numeroHosts = (int)info[FIXED_HEADER_SIZE + 2]; 
+            String[][] r = new String[numeroHosts][3];
+
+            int j = 4;
+            for(int i = 0; i < numeroHosts;i++){
+                int c = 0;
+                StringBuilder sb = new StringBuilder();
+                while(c < 3){
+                    char ch = (char)info[j++];
+                    if(ch == '#'){
+                        r[i][c] = sb.toString();
+                        sb = new StringBuilder();
+                        c++;
+                    } else sb.append(ch);
+
+                }
+            }
+            
             return r;
         }
-        
+        /*
+            String[3] has {id,ip,port}
+        */
+        public static byte[] sendConsultResponse(int tipo,int numeroHosts,String id,String ip, int port){
+            String[][] s = new String[1][3]; 
+            s[0][0] = id; s[0][1] = ip; s[0][2] = port+"";
+            return sendConsultResponse(tipo,1,s);
+        }
         public static byte[] sendConsultResponse(int tipo,int numeroHosts,
-                String id,String ip,int porta){
-            String s = new String(tipo + "#"+numeroHosts + "#" + id 
-                    + "#" + ip + "#" + porta + "#");
+                String[][] hosts){
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(tipo + "#"+numeroHosts + "#");
+            for(int h = 0; h < numeroHosts; h++){
+                sb.append(hosts[h][0] + "#" + hosts[h][1] + "#" + hosts[h][2] + "#");
+            }
+            String s = sb.toString();
             
             byte[] r = new byte[s.length() + 5];
             int i = 0;
@@ -188,14 +219,14 @@ public class PDU {
             r[i++] = CONSULT_RESPONSE; // type REGISTER      
             
             // teste
-            System.out.println("ConsultResponsePDU data a enviar: " + s);
+            // System.out.println("ConsultResponsePDU data a enviar: " + s);
             
             for(int j= 0;j < s.length(); i++,j++)
                 r[i] = (byte) s.charAt(j);
          
             return r;
         }
-       
+        
         /**
          * So tem header por isso n precisa da função readProbeRequest
          * @return 

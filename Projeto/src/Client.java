@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import static java.lang.System.exit;
+import java.net.DatagramSocket;
 import java.net.Socket;
 import java.net.InetAddress;
 import java.util.Scanner;
@@ -16,6 +17,9 @@ public class Client {
  
   static Scanner sc;
   
+  static DatagramSocket ds;
+  
+  
   // TODO: Ask client ip/port or find progammaticly ?? 
   // valores atribuidos à sorte ( n sao usados para ja)
   // static String ip = "1322.2322.2313.1321"; 
@@ -23,19 +27,22 @@ public class Client {
   
   
   public static void main (String args[]) throws IOException {
-    OutputStream os;
-    InputStream is;
-      
-      try{
+    OutputStream os; //TCP os
+    String username;
+    String ip;
+    int port;
+     
+    try{
 
       socket = new Socket("localhost", hostPort);
       os = socket.getOutputStream();
-      is = socket.getInputStream();
 
       InetAddress local = socket.getInetAddress();
-      String ip = local.getHostAddress();
+      ip = local.getHostAddress();
+      // generate a port: int porta = socket.getLocalPort();
       int porta = socket.getLocalPort();
-
+      System.out.println(porta);
+      
       sc = new Scanner(System.in);
 
          // Validar argumentos.
@@ -60,9 +67,13 @@ public class Client {
         System.exit(1);
         break;
     }
-
+     DatagramSocket ds = new DatagramSocket(0);
+     porta = ds.getLocalPort();
      
+    username = args[1];
      
+    new ClientReciever(socket,os,ds,username,ip,porta).start();
+    new ClientUDPTransmission(ds).start();
   // antiga verificação de dados de login  aux.respostaCredenciais();
     printMenuInicialLogIn();
 
@@ -76,10 +87,24 @@ public class Client {
 
       switch(opcao){
           case 0:
-             
+             // Ask for music
+              
+              System.out.println("Nome da música com extensão: ");
+              String fileName;
+              
+              while( true ){
+                  fileName = sc.nextLine();
+                  if(!fileName.equals("")) break;
+              }
+                 
+              byte[] pdu = PDU.sendConsultRequest("banda",fileName);
+              System.out.println("Sending consultREquest file:" +fileName);
+              os.write(pdu);
+              os.flush();
+              
+              
               break;
-          case 1:
-            
+          case 1:            
               // LOGOUT
               byte[] pdu2 = PDU.sendRegPDU( 0 , args[1], args[2], ip, porta);
               os.write(pdu2);
@@ -91,8 +116,7 @@ public class Client {
               System.out.println("Saiu");
               end = true;
               break;
-              
-              
+                  
           default:
               System.out.println("Opção inexistente");
               printMenuInicial();
@@ -104,7 +128,6 @@ public class Client {
     // Fechar ligacao e streams
     socket.close();
       os.close();
-      is.close();    
     
   }
   //Qd se liga o user sem o servidor estar "online"
