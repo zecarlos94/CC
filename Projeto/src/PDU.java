@@ -173,7 +173,7 @@ public class PDU {
             // n tiver o ficheiro
             if( (int)info[FIXED_HEADER_SIZE] == 0) return null;
             //se numeroHosts > 255 program bugs 
-            int numeroHosts = (int)info[FIXED_HEADER_SIZE + 2]; 
+            int numeroHosts = (int)info[FIXED_HEADER_SIZE + 1]; 
             String[][] r = new String[numeroHosts][3];
 
             int j = 4;
@@ -205,18 +205,22 @@ public class PDU {
                 String[][] hosts){
 
             StringBuilder sb = new StringBuilder();
-            sb.append(tipo + "#"+numeroHosts + "#");
+            
             for(int h = 0; h < numeroHosts; h++){
                 sb.append(hosts[h][0] + "#" + hosts[h][1] + "#" + hosts[h][2] + "#");
             }
             String s = sb.toString();
             
-            byte[] r = new byte[s.length() + 5];
+            byte[] r = new byte[s.length() + 5 + 2];
             int i = 0;
             
             r[i++] = 0; // version ?
             r[i++] = 0; // security
             r[i++] = CONSULT_RESPONSE; // type REGISTER      
+            
+            r[i++] = (byte)tipo;
+            r[i++] = (byte)numeroHosts; 
+            
             
             // teste
             // System.out.println("ConsultResponsePDU data a enviar: " + s);

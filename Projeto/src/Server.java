@@ -153,11 +153,15 @@ public class Server {
       long ABORT_TIME = 500; // 0.5 segundos
              try{
                  // stops waiting for response after ABORT_TIME ms 
-                readResponse.join(ABORT_TIME);
+                 
+                readResponse.join();
+               
+                 
              }catch(Exception e){}
       
       hosts = new Vector<String[]>(hostsResponse.getHosts());
           
+      
       
       // Se não houver hosts neste server, procurar nos restantes servers, FASE III
       if(hosts.size()==0){

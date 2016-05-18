@@ -116,7 +116,7 @@ class UserThread extends Thread {
           case PDU.CONSULT_RESPONSE: {
                   System.out.println("User: " + username +" responded CONSUT_REQUEST");
                      String[] host = new String[3];
-                     // TODO: SOLVE BUG (INPUT HAS STRANGE BYTES, NUMEROHOSTS = 49 )
+
                      String[][] pduResponse = PDU.readConsultResponse(input);
                      
                      // Se cliente tem o ficheiro
@@ -126,7 +126,7 @@ class UserThread extends Thread {
                         host[2] = pduResponse[0][2]; // porta UDP
                         hostsResponse.addHost(host);
                      } else  hostsResponse.addHost(null);
-          
+              break;
           }
           default:
               break;
