@@ -176,7 +176,7 @@ public class PDU {
             int numeroHosts = (int)info[FIXED_HEADER_SIZE + 1]; 
             String[][] r = new String[numeroHosts][3];
 
-            int j = 4;
+            int j = FIXED_HEADER_SIZE + 2;
             for(int i = 0; i < numeroHosts;i++){
                 int c = 0;
                 StringBuilder sb = new StringBuilder();

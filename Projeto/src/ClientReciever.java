@@ -79,7 +79,9 @@ public class ClientReciever extends Thread {
                     if(hasFile == 1) System.out.println("I have the file:" + filename);
                     
                     byte[] response = PDU.sendConsultResponse(hasFile, 1 , username, ip, port);
+                    System.out.println("Writting consulstResponse");
                     os.write(response);
+                    System.out.println("Done write to socket");
                     os.flush();
                     System.out.println("Sent CONSULTRESPONSE");
                     break;

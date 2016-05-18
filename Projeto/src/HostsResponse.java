@@ -20,11 +20,13 @@ public class HostsResponse {
     private int nHosts;
     
     
-    public HostsResponse(int nHosts){
-        this.nHosts = nHosts;
+    public HostsResponse(){
         responses = 0;
         hosts = new Vector<String[]>();
     }
+    
+    public synchronized void setNHosts(int n){ this.nHosts = n;}
+    
     public synchronized Vector<String[]> getHosts(){ return hosts;}
             
     /*

@@ -27,6 +27,7 @@ public class Server {
   public Server (int port) throws IOException {
     this.server = new ServerSocket(port);
     this.users  = new Users();
+    this.hostsResponse = new HostsResponse();
   }
 
   /** Colocar o servidor a correr. */
@@ -34,12 +35,14 @@ public class Server {
     Socket      socket;
     UserThread  user;
 
+    
     try {
       // Aceitar ligacoes dos users e atribuir uma thread a cada um.
       System.out.println("Servidor online");
 
       while ((socket = server.accept()) != null) {
           System.out.println("Conecçao socket aceite");
+        
         user = new UserThread(socket, this,hostsResponse);
         user.start();
       }
@@ -122,7 +125,8 @@ public class Server {
       
       Vector<String[]> hosts;
       
-      hostsResponse = new HostsResponse(usersSet.size());
+      
+      hostsResponse.setNHosts(usersSet.size());
       // Look for hosts with the file within the server domain
       for(String username : usersSet){
           Socket userSocket = users.getSocket(username);
