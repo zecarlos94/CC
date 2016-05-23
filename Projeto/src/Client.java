@@ -69,6 +69,7 @@ public class Client {
     }
      DatagramSocket ds = new DatagramSocket(0);
      porta = ds.getLocalPort();
+     System.out.println("Client UDP port:" + porta);
      
     username = args[1];
      

@@ -101,9 +101,11 @@ class UserThread extends Thread {
                   
                   String[][] hosts = new String[nHosts][3];
                   int h = 0;
-                  for(String[] host : hosts)
-                      hosts[h++] = host;
-                  
+                  for(String[] host : hosts){
+                      String[] haux = r.get(h);
+                      host[0] = haux[0]; host[1] = haux[1]; host[2] = haux[2];  
+                      h++;
+                  }
                   byte[] consultResponsePacket = PDU.sendConsultResponse(tipo, nHosts, hosts);
                   
                   os.write(consultResponsePacket);
@@ -154,7 +156,8 @@ class UserThread extends Thread {
 
     }
     catch (Exception e) {System.out.println(e);end=true;}
-
+    //clear buffer
+    for(int i = 0; i < input.length;i++) input[i] = 0;
 
   }// end while
 

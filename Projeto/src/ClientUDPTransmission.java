@@ -48,7 +48,7 @@ public class ClientUDPTransmission extends Thread {
             ds.receive(dp);
             switch (packet[PDU.TYPE_INDEX]){
                 case PDU.PROBE_REQUEST:
-                    
+                    System.out.println("Probed by client ip:" + dp.getAddress().getHostAddress() + "on port:" + dp.getPort() );
                     long timestamp = System.currentTimeMillis();
                     byte[] response_data = PDU.sendProbeResponse(timestamp + "");
                     
@@ -96,7 +96,11 @@ public class ClientUDPTransmission extends Thread {
             }
             
         }catch(Exception e){ e.printStackTrace(); }
+          
+         for(int i = 0; i < packet.length;i++) packet[i] = 0;
+
        }
+       
     }
 }
 

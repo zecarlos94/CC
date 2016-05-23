@@ -44,6 +44,7 @@ public class ClientReciever extends Thread {
         this.username = user;
         this.ip = ip;
         this.port = port;
+        this.ds = ds;
     }
     
     public void run(){
@@ -77,11 +78,10 @@ public class ClientReciever extends Thread {
                     if(f.length() > 0) hasFile = 1;
                     
                     if(hasFile == 1) System.out.println("I have the file:" + filename);
+                    else System.out.println("I dont have the file:" + filename);
                     
                     byte[] response = PDU.sendConsultResponse(hasFile, 1 , username, ip, port);
-                    System.out.println("Writting consulstResponse");
                     os.write(response);
-                    System.out.println("Done write to socket");
                     os.flush();
                     System.out.println("Sent CONSULTRESPONSE");
                     break;
@@ -98,28 +98,43 @@ public class ClientReciever extends Thread {
                     System.out.println("Probing hosts to find the lowest OWD");
                     
                     for(String[] host : hosts){
-                        String id = host[0];
-                        String ip = host[1];
-                        int port = Integer.parseInt(host[2]);
+                        String targetId = host[0];
+                        String targetIp = host[1];
+                        int targetPort = Integer.parseInt(host[2]);
                         byte probe_message[] = PDU.sendProbeRequest();
-                        InetAddress target_address = InetAddress.getByName(ip);
-                        DatagramPacket probe_packet = new DatagramPacket(probe_message,probe_message.length , target_address, port);
-                        
-                        ds.connect(target_address,port);
-                        ds.send(probe_packet);
+                        InetAddress target_address = InetAddress.getByName(targetIp);
+                        String ipTeste = target_address.getHostAddress();
+                        System.out.println("Probing user " + targetId + " with ip:" + targetIp + " on port:" + targetPort);
+                        DatagramPacket probe_packet = new DatagramPacket(probe_message,probe_message.length , target_address, targetPort);
+                      
                         long now = System.currentTimeMillis();
                         
+                        // 
+                        //TODO: Prepare thread to recieve response before sending
+                        class ProbeResponse extends Thread{
+                        /*    
                         byte response_data[] = new byte[1024];
                         DatagramPacket probe_response = new DatagramPacket(response_data,response_data.length);
                         ds.receive(probe_response);
+                    */
+                        }
+                    
+                        
+                        ds.send(probe_packet);
+                      
+                        byte response_data[] = new byte[1024];
+                        DatagramPacket probe_response = new DatagramPacket(response_data,response_data.length);
+                        ds.receive(probe_response);
+  
+                        
                         
                         long response_timeStamp = Long.parseLong(PDU.readProbeResponse(response_data));
                         long OWD = response_timeStamp - now;
-                        
+                        System.out.println("Client probed, OWD =" + OWD);
                         if(OWD < bestOWD){
-                            hostID = id;
+                            hostID = targetId;
                             hostAddress = target_address;
-                            hostPort = port;
+                            hostPort = targetPort;
                             bestOWD = OWD;
                         }
                     }
@@ -138,6 +153,9 @@ public class ClientReciever extends Thread {
             } catch (IOException ex) {
                 Logger.getLogger(ClientReciever.class.getName()).log(Level.SEVERE, null, ex);
             }
+            
+            //clean buffer
+            for(int i = 0; i < mensagem.length;i++) mensagem[i] = 0;
               //end recieving cycle
         }
      

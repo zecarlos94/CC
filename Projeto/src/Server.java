@@ -137,7 +137,7 @@ public class Server {
              byte[] pduCR = PDU.sendConsultRequest(banda, fileName);
              os.write(pduCR); 
              os.flush();
-             os.close();
+        //     os.close();
              } catch(IOException e) {}
           }
       }
