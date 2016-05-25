@@ -24,7 +24,7 @@ public class PDU {
         public static final int MAX_SIZE = 48 * 1024; // bytes
         
         public static final int FIXED_HEADER_SIZE = 3;
-        public static final int EXTENDED_HEADER_SIZE = 7; //UDP DATA
+        public static final int EXTENDED_HEADER_SIZE = FIXED_HEADER_SIZE + 7; //UDP DATA
         
         public static final int TYPE_INDEX = 2;
         

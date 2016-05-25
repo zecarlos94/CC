@@ -158,7 +158,7 @@ public class Server {
              try{
                  // stops waiting for response after ABORT_TIME ms 
                  
-                readResponse.join();
+                readResponse.join(500);
                
                  
              }catch(Exception e){}

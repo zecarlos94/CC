@@ -9,6 +9,7 @@ import java.net.Socket;
 import java.net.InetAddress;
 import java.util.Scanner;
 
+
 public class Client {
 
   static private int hostPort=9091;
@@ -18,6 +19,7 @@ public class Client {
   static Scanner sc;
   
   static DatagramSocket ds;
+  
   
   
   // TODO: Ask client ip/port or find progammaticly ?? 
@@ -31,6 +33,9 @@ public class Client {
     String username;
     String ip;
     int port;
+    ClientExchangeProbe ep;
+    ClientExchangeFile clientExchangeFile;
+    SendACK automaticACK;
      
     try{
 
@@ -72,9 +77,13 @@ public class Client {
      System.out.println("Client UDP port:" + porta);
      
     username = args[1];
-     
-    new ClientReciever(socket,os,ds,username,ip,porta).start();
-    new ClientUDPTransmission(ds).start();
+    
+    clientExchangeFile = new ClientExchangeFile();
+    ep = new ClientExchangeProbe();
+    automaticACK = new SendACK();
+    
+    new ClientReciever(socket,os,ds,username,ip,porta,ep,clientExchangeFile,automaticACK).start();
+    new ClientUDPTransmission(ds,ep,clientExchangeFile,automaticACK).start();
   // antiga verificação de dados de login  aux.respostaCredenciais();
     printMenuInicialLogIn();
 
@@ -97,7 +106,9 @@ public class Client {
                   fileName = sc.nextLine();
                   if(!fileName.equals("")) break;
               }
-                 
+              
+              clientExchangeFile.createFile(fileName);
+              
               byte[] pdu = PDU.sendConsultRequest("banda",fileName);
               System.out.println("Sending consultREquest file:" +fileName);
               os.write(pdu);

@@ -11,13 +11,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.Long.*;
+import static java.lang.System.exit;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Vector;
+
 
 /**
  *
@@ -32,12 +35,16 @@ public class ClientReciever extends Thread {
     private String ip;
     private int port;
     private DatagramSocket ds;
+    private ClientExchangeProbe exchangeTime;
+    private ClientExchangeFile clientExchangeFile;
+    private SendACK automaticACK;
     
     //last file request data
     String filename;
     String banda;
     
-    public ClientReciever(Socket s,OutputStream os,DatagramSocket ds,String user,String ip,int port) throws IOException{
+    public ClientReciever(Socket s,OutputStream os,DatagramSocket ds,String user,String ip,int port,
+            ClientExchangeProbe exchangeTime,ClientExchangeFile clientExchangeFile,SendACK automaticACK) throws IOException{
         this.s=s;
         this.os =os;
         this.is=s.getInputStream();
@@ -45,6 +52,9 @@ public class ClientReciever extends Thread {
         this.ip = ip;
         this.port = port;
         this.ds = ds;
+        this.exchangeTime = exchangeTime;
+        this.clientExchangeFile = clientExchangeFile;
+        this.automaticACK = automaticACK;
     }
     
     public void run(){
@@ -97,6 +107,11 @@ public class ClientReciever extends Thread {
                     System.out.println("Recieved CONSULT_RESPONSE with " + hosts.length + " hosts");
                     System.out.println("Probing hosts to find the lowest OWD");
                     
+                    if(hosts.length == 0){
+                        System.out.println("No1 has that music");
+                        exit(1);
+                    }
+                    
                     for(String[] host : hosts){
                         String targetId = host[0];
                         String targetIp = host[1];
@@ -108,27 +123,34 @@ public class ClientReciever extends Thread {
                         DatagramPacket probe_packet = new DatagramPacket(probe_message,probe_message.length , target_address, targetPort);
                       
                         long now = System.currentTimeMillis();
-                        
-                        // 
-                        //TODO: Prepare thread to recieve response before sending
-                        class ProbeResponse extends Thread{
-                        /*    
-                        byte response_data[] = new byte[1024];
-                        DatagramPacket probe_response = new DatagramPacket(response_data,response_data.length);
-                        ds.receive(probe_response);
-                    */
+                        Vector<Long> l = new Vector<Long>();
+                        //Prepare thread to recieve response before sending
+                        class readResponseJob extends Thread{
+                            private ClientExchangeProbe exchangeTime;
+                            Vector<Long> response_timeStamp;
+                            public readResponseJob(ClientExchangeProbe exchangeTime,Vector<Long> response_timeStamp){
+                                this.exchangeTime = exchangeTime;
+                                this.response_timeStamp = response_timeStamp;
+                            }
+                            public void run(){
+                                long t = exchangeTime.getTime();
+                                response_timeStamp.add(new Long(t));
+                                System.out.println("ResponseTime: " + t);
+                            }   
                         }
-                    
+
+                        Thread readResponse = new readResponseJob(exchangeTime,l);        
+                        readResponse.start();                      
                         
                         ds.send(probe_packet);
-                      
-                        byte response_data[] = new byte[1024];
-                        DatagramPacket probe_response = new DatagramPacket(response_data,response_data.length);
-                        ds.receive(probe_response);
-  
-                        
-                        
-                        long response_timeStamp = Long.parseLong(PDU.readProbeResponse(response_data));
+                         try {
+                               readResponse.join(500);
+                               System.out.println("DatagramPacket successfull load");
+                            } catch (InterruptedException ex) {
+                               Logger.getLogger(ClientReciever.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                         
+                        long response_timeStamp = l.get(0);
                         long OWD = response_timeStamp - now;
                         System.out.println("Client probed, OWD =" + OWD);
                         if(OWD < bestOWD){
@@ -140,10 +162,13 @@ public class ClientReciever extends Thread {
                     }
                     // Send packet REQUEST data to start file transfer
                     
-                    System.out.println("Sending Request to start file transfer with user:" + hostAddress);
-                    byte[] request_data = PDU.sendRequest(banda, filename);
+                    System.out.println("Sending Request to start file " + clientExchangeFile.getFilename() + " transfer with user addrss: " + hostAddress);
+                    byte[] request_data = PDU.sendRequest(banda, clientExchangeFile.getFilename());
                     DatagramPacket request = new DatagramPacket(request_data,request_data.length,hostAddress,hostPort);
                     ds.send(request);
+                    
+                    clientExchangeFile.setOWD(bestOWD);
+                    automaticACK.startSendACK(ds, bestOWD, hostAddress, hostPort);
                     
                     break;
                 default:
