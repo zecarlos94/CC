@@ -35,7 +35,7 @@ public class Client {
     int port;
     ClientExchangeProbe ep;
     ClientExchangeFile clientExchangeFile;
-    SendACK automaticACK;
+    SendRET automaticACK;
      
     try{
 
@@ -80,13 +80,26 @@ public class Client {
     
     clientExchangeFile = new ClientExchangeFile();
     ep = new ClientExchangeProbe();
-    automaticACK = new SendACK();
+    automaticACK = new SendRET();
     
     new ClientReciever(socket,os,ds,username,ip,porta,ep,clientExchangeFile,automaticACK).start();
     new ClientUDPTransmission(ds,ep,clientExchangeFile,automaticACK).start();
   // antiga verificação de dados de login  aux.respostaCredenciais();
+    
+    // SendAutomaticFile TEST for user "Gustavo11"
+    if( username.equals("Gustavo11") )
+    {
+      String fileName = new String("000001.mp3");          
+      clientExchangeFile.createFile(fileName);
+      byte[] pdu = PDU.sendConsultRequest("banda",fileName);
+      System.out.println("Sending consultREquest file:" +fileName);
+      os.write(pdu);
+      os.flush();
+      while(true)
+      sc.hasNextLine();
+    
+    } else {
     printMenuInicialLogIn();
-
     boolean end = false;
     while (sc.hasNextLine() && !end) {
       // Ler do stdin.
@@ -135,15 +148,18 @@ public class Client {
               KO=true;
               break;
       }
-      // if(!KO) printMenuInicialLogIn(); //para evitar a situação de apresentar duas vezes o menu qd ocorre "Opção inexistente"
+      if(!KO) printMenuInicialLogIn(); //para evitar a situação de apresentar duas vezes o menu qd ocorre "Opção inexistente"
     }
+  
     // Fechar ligacao e streams
+  
+    
     socket.close();
       os.close();
     
-  }
   //Qd se liga o user sem o servidor estar "online"
-  catch (IOException e) {
+    }
+    }catch (IOException e) {
       System.err.println("Couldn't get I/O for the connection to " + hostPort);
       System.exit(1);
   }
@@ -155,7 +171,7 @@ public class Client {
     printMenuInicial();
   }
 
- private static void printMenuInicial(){
+ public static void printMenuInicial(){
    System.out.println(
       "***** ***** ***** *****\n" +
       "Escreva:\n" +

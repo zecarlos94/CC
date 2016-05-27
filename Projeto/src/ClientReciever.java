@@ -37,14 +37,14 @@ public class ClientReciever extends Thread {
     private DatagramSocket ds;
     private ClientExchangeProbe exchangeTime;
     private ClientExchangeFile clientExchangeFile;
-    private SendACK automaticACK;
+    private SendRET automaticACK;
     
     //last file request data
     String filename;
     String banda;
     
     public ClientReciever(Socket s,OutputStream os,DatagramSocket ds,String user,String ip,int port,
-            ClientExchangeProbe exchangeTime,ClientExchangeFile clientExchangeFile,SendACK automaticACK) throws IOException{
+            ClientExchangeProbe exchangeTime,ClientExchangeFile clientExchangeFile,SendRET automaticACK) throws IOException{
         this.s=s;
         this.os =os;
         this.is=s.getInputStream();
@@ -168,7 +168,7 @@ public class ClientReciever extends Thread {
                     ds.send(request);
                     
                     clientExchangeFile.setOWD(bestOWD);
-                    automaticACK.startSendACK(ds, bestOWD, hostAddress, hostPort);
+                    automaticACK.startSendRET(ds, bestOWD, hostAddress, hostPort);
                     
                     break;
                 default:

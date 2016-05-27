@@ -9,7 +9,13 @@ import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,60 +33,66 @@ public class ClientUDPTransmission extends Thread {
     
     private DatagramSocket ds;
     private ClientExchangeProbe exchangeTime;
-    private ClientExchangeFile clientExchangeFile;
-    private SendACK automaticACK;
+    private ClientExchangeFile fileEx;
+    private SendRET automaticRET;
     
+    public static boolean SHOW_RET = true;
+    public static boolean SHOW_OTHERS = true; // ACK and other not so relevant messages
     
-    String banda;
-    String filename;
 
-    
        // Vars do file a enviar
        File file;
-       byte[] filedata;
-       byte[][] dataFragments = null;
-       int fragmentsN = 0;
-       int windowS = 10;
-       int lastConfirmed = 0;
-       int nonConfirmed = 0;
-       int packetIndex = 0;
-       
+       FileInputStream fis;
+       Map<Integer,byte[]> fragments;
+       int nfragments;
+       int fragmentDataSize;
+       int lastFragmentSize;
+       float windowS;
+       boolean threshold = false;
+       int packetIndex;
+       int balance;
        
        //Vars da receçao do file
        File newfile;
-       DataRecieved dataRecieved = null;
-       int pWritten = 0;
+       boolean lastPacketRecieved;
+       TreeSet<Integer> packets_recieved = new TreeSet<Integer>();
+       TreeSet<Integer> pending_ret = new TreeSet<Integer>();
        
        
-       //int lastSegment = 0;
-       
-       private void writeToFile(Datagram dataPacket){
-        try {
-            FileOutputStream fos = clientExchangeFile.getFileOutputStream();
-            int nn = dataPacket.dataSize();
-
-            for(int i = PDU.EXTENDED_HEADER_SIZE; i < nn && i < PDU.MAX_SIZE; i++)
-                fos.write(dataPacket.data[i]);
-            fos.flush();
-        } catch (IOException ex) {
-            Logger.getLogger(ClientUDPTransmission.class.getName()).log(Level.SEVERE, null, ex);
-        }
+       private int missingPacket(){
+           Iterator<Integer> it = packets_recieved.iterator();
+           int prev = -1;
+           while(it.hasNext()){
+               Integer i = it.next();
+               if( i - 1 == prev) prev = i; 
+                else return prev + 1;
+           }
+           return prev + 1;
        }
        
+    private void resetSender(){
+       this.fragments = new HashMap<Integer,byte[]>();
+       Client.printMenuInicial();
+    }   
+    private void resetReciever(){
+       TreeSet<Integer> packets_recieved = new TreeSet<Integer>();
+       TreeSet<Integer> pending_ret = new TreeSet<Integer>();
+       Client.printMenuInicial();
+    }
+    
     int fail;   
     boolean failed;
     public ClientUDPTransmission(DatagramSocket ds,ClientExchangeProbe exchangeTime,
-            ClientExchangeFile clientExchangeFile, SendACK automaticACK){
+            ClientExchangeFile clientExchangeFile, SendRET automaticACK){
         this.ds = ds;
         this.exchangeTime = exchangeTime;
-        this.clientExchangeFile = clientExchangeFile;
-        this.automaticACK = automaticACK;
-        this.dataRecieved = new DataRecieved();
+        this.fileEx = clientExchangeFile;
+        this.automaticRET = automaticACK;
+        this.fragments = new HashMap<Integer,byte[]>();
         
         Random rand = new Random();
         fail = rand.nextInt(10);
         failed = false;
-
     }
     
     public void run(){
@@ -111,194 +123,185 @@ public class ClientUDPTransmission extends Thread {
                     break;
                 case PDU.REQUEST:    
                     String[] s = PDU.readRequest(packet);
-                    banda = s[0];
-                    filename = "music/"+s[1];
-                    windowS = 10; // slow Start
-                    nonConfirmed = 0;
+                    String banda = s[0];
+                    String filename = "music/"+s[1];
+                    windowS = 2; // slow Start
+                    balance = (int)windowS;
                     
                     file = new File(filename);
                     
-                    filedata = new byte[(int)file.length()];
-                    
-                    try {
-                        FileInputStream fis = new FileInputStream(filename);
-                        fis.read(filedata);
-                        System.out.println("Read file");
-                        fis.close();
-                    }
-                    catch(IOException e) {e.printStackTrace();}
-  
-                    dataFragments = Datagram.fragmentFile(filedata);
-                    fragmentsN = dataFragments.length;
-                    System.out.println("Number of fragments to send:" + fragmentsN);
-                    System.out.println("First packet size:" + dataFragments[0].length);
+                     long filesize = file.length();
+                     fragmentDataSize = PDU.MAX_SIZE - PDU.EXTENDED_HEADER_SIZE;
+                     nfragments =  (int)filesize / fragmentDataSize;
+                     if( filesize > nfragments*fragmentDataSize ) nfragments++;
+                     this.lastFragmentSize = (int)filesize - ((nfragments - 1) * fragmentDataSize );
+                      System.out.println("File size " + filesize + " bytes");
+                    System.out.println("Number of fragments to send:" + nfragments);
+                    System.out.println("Max data on fragment:" +fragmentDataSize);
+                    System.out.println("LastFragment size:" +lastFragmentSize);
 
-                    if(true){
-                        byte[] fdata = dataFragments[packetIndex++];
-                        DatagramPacket fragment = new DatagramPacket(fdata,fdata.length
-                                                                        ,dp.getAddress(),dp.getPort());
+                    fis = new FileInputStream(filename);
                     
-                        ds.send(fragment);
-                    }
-                    /*
-                    while(windowS > nonConfirmed ){
-                        byte[] fdata = dataFragments[packetIndex++];
-                        nonConfirmed++;    
-                        DatagramPacket fragment = new DatagramPacket(fdata,fdata.length
+                    for(packetIndex = 0; packetIndex < windowS; packetIndex++){
+                        int fragmentSize = packetIndex == (nfragments - 1) ? 
+                                           lastFragmentSize + PDU.EXTENDED_HEADER_SIZE 
+                                           : fragmentDataSize + PDU.EXTENDED_HEADER_SIZE;  
+                        byte fragmentData[] = new byte[fragmentSize];
+                        try {
+                            fis.read(fragmentData,PDU.EXTENDED_HEADER_SIZE,fragmentSize - PDU.EXTENDED_HEADER_SIZE);
+                            fragments.put(packetIndex, fragmentData);
+                        } catch(IOException e) {e.printStackTrace();}
+                       
+                        Datagram.fillDataHeader(fragmentData,packetIndex);
+                        
+                        DatagramPacket fragment = new DatagramPacket(fragmentData,fragmentData.length
                                                                         ,dp.getAddress(),dp.getPort());
-                    
                         ds.send(fragment);
+                        balance--;
                     }
-                    System.out.println("Sent initial "+ nonConfirmed + "packets");
-                    */
+                    if(SHOW_OTHERS) System.out.println("Sent inital " + packetIndex + " packets");
+
                     break;
                 case PDU.DATA:
                     Datagram datagram = new Datagram(packet);
-                  //  System.out.println("New datagram!");
-
+        
+                    if(datagram.isFIN()){
+                        System.out.println("FIN recieved, file transfer over");
+                        resetSender();
+                    } else
                     
-                   // Reciever side
+                    // TODO: Create more rejects
+                    // Reciever side
                     if(datagram.hasData()){
                         int sequence = datagram.seqIndex();
                         
-                        if(sequence == pWritten){
-                            writeToFile(datagram);
-                             if( datagram.moreFragments == 0 ){
-                                        // notify Client
-                                        System.out.println("Music file transfer over");
-                                        clientExchangeFile.getFileOutputStream().close();
-                                        exit(1);
-                                        
-                             } 
-                            automaticACK.confirmSegment(pWritten);
+                        if(packets_recieved.contains(sequence)) 
+                            break; // ignores repeated packet
+                         else packets_recieved.add(sequence);
+                        
+                        
+                        
+                             fileEx.wb.add(sequence, packet);
+                    
+                         if( datagram.moreFragments == 0 ){
+                                    // notify Client
+                                    if(SHOW_OTHERS) System.out.println("Lastpacket recieved");
+                                    lastPacketRecieved = true;
+                                    
+                                    // Disable forgotten timeouts
+                                    for(int packet_ret : pending_ret){
+                                        if( packets_recieved.contains(packet_ret ) || packet_ret > sequence)
+                                            automaticRET.confirmSegment(packet_ret); 
+                                    }
+                                    // find missing packets and prepare Timeouts
+                                    for(int i = missingPacket(); i < sequence;i++)
+                                        if(!packets_recieved.contains(i) && !pending_ret.contains(i))
+                                              automaticRET.prepare(Datagram.makeRET(i),i);
+                         } else {     
+                             class UpdateBuffer extends Thread{
+                                 public void run(){fileEx.wb.update();}
+                             }
 
-                            byte ackP[] = Datagram.makeACK(pWritten);
-                            pWritten++;
-                            automaticACK.prepare(Datagram.makeRET(pWritten));
+                             if(pending_ret.contains(sequence)){
+                                automaticRET.confirmSegment(sequence);
+                                pending_ret.remove(sequence);
+                             }
+                             new UpdateBuffer().start();
 
-                            
-                            DatagramPacket ackDP = new DatagramPacket(ackP,ackP.length
+                             // add more timeouts if needed
+                             int maxRej = !lastPacketRecieved ? sequence + 5 : sequence;
+                             
+                             for(int i = missingPacket(); i < maxRej;i++)
+                                 if(!packets_recieved.contains(i) && !pending_ret.contains(i)){
+                                      automaticRET.prepare(Datagram.makeRET(i),i);
+                                      pending_ret.add(i);
+                                 }
+                             
+                             if(SHOW_OTHERS) System.out.println("Sending selective ACK packet " + sequence);
+                             // Packet ack
+                             byte ackP[] = Datagram.makeACK(sequence);
+                             DatagramPacket ackDP = new DatagramPacket(ackP,ackP.length
                                                                         ,dp.getAddress(),dp.getPort());
-                            
-                            ds.send(ackDP);
-                        } else {
-                            byte ackP[] = Datagram.makeRET(pWritten);
-                            DatagramPacket ackDP = new DatagramPacket(ackP,ackP.length
+                             try { ds.send(ackDP); } catch (IOException ex) {}
+                             
+                        }
+                         if(SHOW_OTHERS) System.out.println("Confirmed " + packets_recieved.size() + " packets");
+                         // every packet is confirmed
+                        if( lastPacketRecieved && packets_recieved.last() == packets_recieved.size() - 1){
+                              System.out.println("Every packet is confirmed, waiting for threads writing on file");
+                              //Disable missing timeouts
+                              for(int packet_ret : pending_ret){
+                                        if( packets_recieved.contains(packet_ret ) || packet_ret > sequence)
+                                            automaticRET.confirmSegment(packet_ret); 
+                                    }
+                              fileEx.wb.waitBuffer();
+                              
+                              byte fin[] = Datagram.makeFIN();
+                              DatagramPacket finP = new DatagramPacket(fin,fin.length
                                                                         ,dp.getAddress(),dp.getPort());
-                           ds.send(ackDP);
+                              try { ds.send(finP); } catch (IOException ex) {}
+                              
+                              System.out.println("Sent FIN");
+                              System.out.println("File transfer over");
+                              resetReciever();
                         }
                         break;
-                    }
-                    //sender side
+                    }  //sender side
                     else if( datagram.isACK()){
                         int ack = datagram.iseq;
                   
-                        packetIndex = ack + 1;
-                        if( packetIndex == fail && !failed){
-                            System.out.println("Failed to transmit packet: " + fail);
-                            failed = true;
-                        }else{
-                          byte[] fdata = dataFragments[packetIndex++];
-                          DatagramPacket fragment = new DatagramPacket(fdata,fdata.length
-                                                                        ,dp.getAddress(),dp.getPort());
-                          ds.send(fragment);
+                        balance++;
+                        balance+= threshold ? 0.25f : 1;
+                        windowS+= threshold ? 0.25f : 1;
+                        System.out.println("Recieved ACK for packet " + ack);
+                        // remove packet from memomry
+                        fragments.remove(ack);
+
+                        for(; (balance > 0 ) && (packetIndex < nfragments) ; packetIndex++){
+    
+                            int fragmentSize = packetIndex == (nfragments - 1) ? 
+                                               lastFragmentSize + PDU.EXTENDED_HEADER_SIZE 
+                                               : fragmentDataSize + PDU.EXTENDED_HEADER_SIZE;  
+                            byte fragmentData[] = new byte[fragmentSize];
+                            try {
+                                fis.read(fragmentData,PDU.EXTENDED_HEADER_SIZE,fragmentSize - PDU.EXTENDED_HEADER_SIZE);
+                                fragments.put(packetIndex, fragmentData);
+                            } catch(IOException e) {e.printStackTrace();}
+
+                            Datagram.fillDataHeader(fragmentData,packetIndex);
+                             //MoreFragmentsFlag set to 0
+                            if(packetIndex == nfragments - 1) 
+                                fragmentData[PDU.FIXED_HEADER_SIZE + 1] = 0;
+
+                            DatagramPacket fragment = new DatagramPacket(fragmentData,fragmentData.length
+                                                                            ,dp.getAddress(),dp.getPort());
+                            ds.send(fragment);
+                            balance--;
+                            if(SHOW_OTHERS) System.out.println("Sent packet " + packetIndex);
                         }
-                    }
-                    
+                        
+                    } 
                     else if( datagram.isRET()){
                         int ret = datagram.iseq;
                         
-                        packetIndex = ret;
-                        byte[] fdata = dataFragments[packetIndex++];
-                        DatagramPacket fragment = new DatagramPacket(fdata,fdata.length
-                                                                        ,dp.getAddress(),dp.getPort());
-                        ds.send(fragment);
-                    }
-                        
-                        /*
-                        if(dataRecieved.hasSegment(sequence)) {
-                            System.out.println("Fragment number:" + sequence +" already on memory");
-                            break;
+                        if(!threshold){
+                            threshold = true;
+                            int rupture = (int)windowS / 2;
+                            balance-=rupture; windowS-=rupture; 
                         }
+                        if(SHOW_RET) System.out.println("RET: " + ret +" Recieved Selective Reject ");
                         
-                        dataRecieved.push(packet, sequence,datagram.dataSize() + PDU.EXTENDED_HEADER_SIZE);
-                        
-                        int nReady = dataRecieved.getNPackets();
-                        
-                        System.out.println("Currently needs segment " + pWritten );
-                        System.out.println("First on memory " + dataRecieved.firstSeq() );
-
-                        
-                        if(nReady > 0 && pWritten == dataRecieved.firstSeq() ){
-                            System.out.println("Writting " + nReady + " packets from memory");
-                                for(int i = 0; i < nReady;i++){
-                                 //   System.out.println("DataRecieved index:" + dataRecieved.index);
-                                    Datagram dg = new Datagram(dataRecieved.pop()); 
-                                    writeToFile(dg);
-                                    //dataRecieved.cleanLastPopped();
-                                    
-                                    automaticACK.confirmSegment(pWritten);
-                                    pWritten++;
-                                    
-                                    if( datagram.moreFragments == 0 ){
-                                        // notify Client
-                                        System.out.println("Music file transfer over");
-                                    } 
-                                    
-                                }
-                        
-                        
-                           byte ackP[] = Datagram.makeACK(pWritten);
-                           DatagramPacket ackDP = new DatagramPacket(ackP,ackP.length
-                                                                        ,dp.getAddress(),dp.getPort());
-                           ds.send(ackDP);
-                           
-                           // Retransmit ACK incase ACK fails
-                           automaticACK.prepare(Datagram.makeRET(pWritten));
-                        }
-                        
-                    }
-                        */
-                    /*  Sender Side
-                        read Response
-                     */
-                      /*
-                    if( datagram.isACK()){
-                        int ack = datagram.iseq;
-                        int confirmed = ack - lastConfirmed;
-                        //windowS+= confirmed;
-                        nonConfirmed-=confirmed;
-                        
-                        lastConfirmed = ack;
-
-                        System.out.println("NonConfirmed " + nonConfirmed);
-                        System.out.println("Recieved ACK asking for" + ack);
-                        
-                      while(windowS > nonConfirmed && packetIndex < fragmentsN){
-                        byte[] fdata = dataFragments[packetIndex++];
-                        DatagramPacket fragment = new DatagramPacket(fdata,fdata.length
-                                                                        ,dp.getAddress(),dp.getPort());
-                       // sleep(100);
-                        ds.send(fragment);
-                      }
-                        
-                    }
-                    
-                    if( datagram.isRET()){
-                        int ret = datagram.iseq;
-                        System.out.println("Recieved RET asking for" + ret);
-                        
-                        packetIndex = ret;
-                      while(windowS > nonConfirmed && packetIndex < fragmentsN){
-                         byte[] fdata = dataFragments[packetIndex++];
-                         DatagramPacket fragment = new DatagramPacket(fdata,fdata.length
-                                                                        ,dp.getAddress(),dp.getPort());
-                        // sleep(100);
-                         ds.send(fragment);
-                      } 
-                    
-                    }
-                    */
+                        if( fragments.containsKey(ret) && ret < nfragments){
+                            byte data[] = fragments.get(ret);
+                            Datagram.fillDataHeader(data,ret);
+                            DatagramPacket fragment = new DatagramPacket(data,data.length
+                                                                     ,dp.getAddress(),dp.getPort());
+                            ds.send(fragment);
+                            if(SHOW_RET) System.out.println("Resent " + ret);
+                        } else { 
+                            if(SHOW_RET) System.out.println("Packet: " + ret +" Not loaded");}
+                    }       
+               
                     packet = new byte[PDU.MAX_SIZE];
                   break;
                 default:
@@ -308,7 +311,7 @@ public class ClientUDPTransmission extends Thread {
             
         }catch(Exception e){ e.printStackTrace(); }
           
-         for(int i = 0; i < packet.length;i++) packet[i] = 0;
+       //  for(int i = 0; i < packet.length;i++) packet[i] = 0;
 
        }
        
@@ -317,7 +320,7 @@ public class ClientUDPTransmission extends Thread {
 
 class Datagram {
     
-    static int DATA = 0, ACK = 1, RET = 2; 
+    static int DATA = 0, ACK = 1, RET = 2, FIN = 3; 
     
     byte type; // packet with data = 0 , retransmit = 1   
     
@@ -325,22 +328,24 @@ class Datagram {
     
     byte iseq; // Bytes alocados para a sequenciação em ints de 2 bytes
 
-    
-    byte dataSize1,dataSize2,dataSize3,dataSize4;
-    
-    
     byte[] data;// includes 4 byte header
     
     public Datagram(byte[] d){
         type = d[PDU.FIXED_HEADER_SIZE];
         moreFragments = d[PDU.FIXED_HEADER_SIZE + 1];
         iseq = d[PDU.FIXED_HEADER_SIZE + 2];
-        dataSize1 = d[PDU.FIXED_HEADER_SIZE + 3];
-        dataSize2 = d[PDU.FIXED_HEADER_SIZE + 4];
-        dataSize3 = d[PDU.FIXED_HEADER_SIZE + 5];
-        dataSize4 = d[PDU.FIXED_HEADER_SIZE + 6];
         
         data = d;
+    }
+    
+    public static void fillDataHeader(byte p[],int seq){
+        p[0] = 0; p[1] = 0;
+        p[2] = PDU.DATA; 
+        
+        p[3] = (byte)DATA;
+        p[4] = 1;
+        p[5]= (byte)seq;
+         
     }
     
     public static byte[] makeACK(int i){
@@ -351,11 +356,7 @@ class Datagram {
         p[3] = (byte)ACK;
         p[4] = 1;
         p[5]= (byte)i;
-        
-        p[6] = 0;
-        p[7] = 0;
-        p[8] = 0;
-        p[9] = 0;
+      
         return p;
     }
     
@@ -368,30 +369,32 @@ class Datagram {
         p[4] = 1;
         p[5]= (byte)i;
         
-        p[6] = 0;
-        p[7] = 0;
-        p[8] = 0;
-        p[9] = 0;
         return p;
     }
+    
+    public static byte[] makeFIN(){
+        byte[] p = new byte[PDU.EXTENDED_HEADER_SIZE];
+        p[0] = 0; p[1] = 0;
+        p[2] = PDU.DATA; 
+        
+        p[3] = (byte)FIN;
+        p[4] = 1;
+        p[5]= 0;
+        return p;
+    }
+    
+    public boolean isFIN(){ return FIN == (int)type;}
     
     public boolean isRET(){
             return (int)type == RET;
     }
     
-    public boolean hasData(){ return type == 0;}
+    public boolean hasData(){ return (int)type == DATA;}
     
     public boolean isACK() { 
         return (int)type == ACK;
     }
     
-    public int dataSize(){
-        byte[] s = new byte[4]; 
-        s[0] = dataSize1;s[1] = dataSize2;
-        s[2] = dataSize3;s[3] = dataSize4;
-        
-        return ByteBuffer.wrap(s).getInt();
-    }
     
     public boolean lastSegment(){
         return moreFragments == 0;
@@ -401,41 +404,4 @@ class Datagram {
         return iseq; 
     }
     
-  
-    
-    public static byte[][] fragmentFile(byte[] filedata){
-        int dataSize = PDU.MAX_SIZE - PDU.EXTENDED_HEADER_SIZE;
-        int n = filedata.length / dataSize; // n fragments
-        int d = 0;
-        
-        byte[][] r = new byte[n][PDU.MAX_SIZE];
-        for(int i = 0; i < n ; i++){
-            // Fixed Header
-                r[i][0] = 0; 
-                r[i][1] = 0;
-                r[i][2] = PDU.DATA;
-            
-            //Extended Header
-                r[i][3] = (byte) DATA; //data flag
-                r[i][4] = (i != n - 1)? (byte)1 : 0; // moreFragments flag
-                r[i][5] = (byte)i;   // seq
-
-                int size;                  
-                if( i < n-1) size = dataSize;
-                    else size = filedata.length - dataSize * i;
-                
-                byte[] ibytes =  ByteBuffer.allocate(4).putInt(size).array();
-                
-                    r[i][6] = ibytes[0];
-                    r[i][7] = ibytes[1];   
-                    r[i][8] = ibytes[2];   
-                    r[i][9] = ibytes[3];   
-                
-                
-                for(int j = PDU.EXTENDED_HEADER_SIZE; j < PDU.MAX_SIZE;j++)
-                    r[i][j] = filedata[d++];
-        }
-        
-        return r;
-    }
 }

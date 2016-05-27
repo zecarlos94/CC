@@ -16,12 +16,15 @@ public class ClientExchangeFile {
     private File file;
     private FileOutputStream fos;
     private long OWD;
+    public WriteToFileBuffer wb;
+    
     
     public synchronized void createFile(String filename) throws FileNotFoundException{
         this.filename = filename;
         //this.banda = banda;
-        file = new File("music/"+filename+"R");
+        file = new File("music/"+ "R" +filename);
         fos = new FileOutputStream(file);
+        wb = new WriteToFileBuffer(fos);
     }
     
     public synchronized void setOWD(long t) { this.OWD = t;}
