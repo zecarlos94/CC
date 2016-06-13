@@ -11,6 +11,10 @@ import Exceptions.AuthenticationErrorException;
 import Exceptions.UserAlreadyInException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
@@ -18,34 +22,47 @@ public class Server {
   private ServerSocket server;
   private Users users;
   private HostsResponse hostsResponse;
+  private ServerCommunication serverCommunication;
+  
+  int serverConPort;
 
   /**
    *  Construtor parametrizado.
    *  @param port Port na qual ligar o servidor.
      * @throws java.io.IOException
    */
-  public Server (int port) throws IOException {
+  public void main(String[] args) throws IOException {
+      int serverPort = Integer.parseInt(args[0]);
+      this.init(serverPort);
+      serverConPort = serverPort + 50;
+      run();
+  }
+  
+  public void init(int port) throws IOException {
     this.server = new ServerSocket(port);
     this.users  = new Users();
     this.hostsResponse = new HostsResponse();
+    
   }
 
   /** Colocar o servidor a correr. */
   public void run () {
-    Socket      socket;
-    UserThread  user;
-
-    
     try {
       // Aceitar ligacoes dos users e atribuir uma thread a cada um.
       System.out.println("Servidor online");
-
+    serverCommunication = new ServerCommunication(this);
+    serverCommunication.start();
+    serverCommunication.reg();
+      Socket      socket;
+      UserThread  user;
       while ((socket = server.accept()) != null) {
           System.out.println("Conecçao socket aceite");
-        
         user = new UserThread(socket, this,hostsResponse);
         user.start();
+        
+       
       }
+      
     }
     catch (Exception e) {
       // Se falhar fazer print da excepcao e da stack.
@@ -53,6 +70,8 @@ public class Server {
       PrintWriter pw = new PrintWriter(System.out);
       e.printStackTrace(pw);
     }
+    System.out.println("Sending Unreg packet to central Server");
+    serverCommunication.unreg();
   }
 
   public void updateSocket (String username, Socket socket) {
@@ -123,7 +142,7 @@ public class Server {
       if(userRequesting!=null)
           usersSet.remove(userRequesting);
       
-      Vector<String[]> hosts;
+      Vector<String[]> hosts = new Vector<String[]>();
       
       
       hostsResponse.setNHosts(usersSet.size());
@@ -137,7 +156,6 @@ public class Server {
              byte[] pduCR = PDU.sendConsultRequest(banda, fileName);
              os.write(pduCR); 
              os.flush();
-        //     os.close();
              } catch(IOException e) {}
           }
       }
@@ -161,15 +179,12 @@ public class Server {
                 readResponse.join(500);
                
                  
-             }catch(Exception e){}
+             }catch(Exception e){}          
       
-      hosts = new Vector<String[]>(hostsResponse.getHosts());
-          
-      
-      
+      hosts = hostsResponse.getHosts();
       // Se não houver hosts neste server, procurar nos restantes servers, FASE III
-      if(hosts.size()==0){
-      
+      if(hosts.size()==0 && userRequesting != null){
+          hosts = serverCommunication.sendConsultRequest(banda, fileName,ABORT_TIME*2);
       }
       return hosts;
   }
