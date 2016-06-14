@@ -84,9 +84,14 @@ public class ClientReciever extends Thread {
                     
                     // função para verificar se tem o ficheiro
                     int hasFile = 0;
-                    File f = new File("music/" + filename);
-                    if(f.length() > 0) hasFile = 1;
                     
+                    File dir = new File(username);
+                    if(dir.exists() && new File(dir,filename).exists())
+                        hasFile = 1;
+                            /*
+                    File f = new File(username + "/" + filename);
+                    if(f.length() > 0) hasFile = 1;
+                    */
                     if(hasFile == 1) System.out.println("I have the file:" + filename);
                     else System.out.println("I dont have the file:" + filename);
                     
@@ -104,14 +109,14 @@ public class ClientReciever extends Thread {
                     InetAddress hostAddress = null;
                     long bestOWD = Long.MAX_VALUE;
                     
-                    System.out.println("Recieved CONSULT_RESPONSE with " + hosts.length + " hosts");
-                    System.out.println("Probing hosts to find the lowest OWD");
-                    
-                    if(hosts.length == 0){
-                        System.out.println("No1 has that music");
+                    if(hosts == null || hosts.length == 0){
+                        System.out.println("Noone has the music request");
                         exit(1);
                     }
-                    
+
+                    System.out.println("Recieved CONSULT_RESPONSE with " + hosts.length + " hosts");
+                    System.out.println("Probing hosts to find the lowest OWD");
+
                     for(String[] host : hosts){
                         String targetId = host[0];
                         String targetIp = host[1];

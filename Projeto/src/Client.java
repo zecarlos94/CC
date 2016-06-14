@@ -12,7 +12,7 @@ import java.util.Scanner;
 
 public class Client {
 
-  static private int hostPort=9091;
+  static int hostPort;
 
   static Socket socket;
  
@@ -37,6 +37,8 @@ public class Client {
     ClientExchangeFile clientExchangeFile;
     SendRET automaticACK;
      
+    hostPort = Integer.parseInt(args[3]);
+    
     try{
 
       socket = new Socket("localhost", hostPort);
@@ -78,15 +80,16 @@ public class Client {
      
     username = args[1];
     
-    clientExchangeFile = new ClientExchangeFile();
+    clientExchangeFile = new ClientExchangeFile(username);
     ep = new ClientExchangeProbe();
     automaticACK = new SendRET();
     
     new ClientReciever(socket,os,ds,username,ip,porta,ep,clientExchangeFile,automaticACK).start();
-    new ClientUDPTransmission(ds,ep,clientExchangeFile,automaticACK).start();
+    new ClientUDPTransmission(ds,ep,clientExchangeFile,automaticACK,username).start();
   // antiga verificação de dados de login  aux.respostaCredenciais();
     
     // SendAutomaticFile TEST for user "Gustavo11"
+   /*
     if( username.equals("Gustavo11") )
     {
       String fileName = new String("000001.mp3");          
@@ -99,6 +102,7 @@ public class Client {
       sc.hasNextLine();
     
     } else {
+        */
     printMenuInicialLogIn();
     boolean end = false;
     while (sc.hasNextLine() && !end) {
@@ -119,14 +123,15 @@ public class Client {
                   fileName = sc.nextLine();
                   if(!fileName.equals("")) break;
               }
-              
+              System.out.println("Creating file");
               clientExchangeFile.createFile(fileName);
+              System.out.println("File created");
               
               byte[] pdu = PDU.sendConsultRequest("banda",fileName);
-              System.out.println("Sending consultREquest file:" +fileName);
               os.write(pdu);
               os.flush();
-              
+                            System.out.println("Sending consultREquest file:" +fileName);
+
               
               break;
           case 1:            
@@ -158,7 +163,7 @@ public class Client {
       os.close();
     
   //Qd se liga o user sem o servidor estar "online"
-    }
+   // }
     }catch (IOException e) {
       System.err.println("Couldn't get I/O for the connection to " + hostPort);
       System.exit(1);

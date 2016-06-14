@@ -17,12 +17,24 @@ public class ClientExchangeFile {
     private FileOutputStream fos;
     private long OWD;
     public WriteToFileBuffer wb;
+    private String username;
     
+    public ClientExchangeFile(String user){
+        username = user;
+    }
     
     public synchronized void createFile(String filename) throws FileNotFoundException{
         this.filename = filename;
         //this.banda = banda;
-        file = new File("music/"+ "R" +filename);
+        
+        
+        File dir = new File(username);
+        if(!dir.exists()){
+              dir.mkdir();
+        }
+        
+        file = new File(dir, "R" +filename);
+        
         fos = new FileOutputStream(file);
         wb = new WriteToFileBuffer(fos);
     }

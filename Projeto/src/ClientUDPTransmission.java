@@ -41,6 +41,7 @@ public class ClientUDPTransmission extends Thread {
     
 
        // Vars do file a enviar
+       String client_username;
        File file;
        FileInputStream fis;
        Map<Integer,byte[]> fragments;
@@ -83,13 +84,14 @@ public class ClientUDPTransmission extends Thread {
     int fail;   
     boolean failed;
     public ClientUDPTransmission(DatagramSocket ds,ClientExchangeProbe exchangeTime,
-            ClientExchangeFile clientExchangeFile, SendRET automaticACK){
+            ClientExchangeFile clientExchangeFile, SendRET automaticACK, String client_username){
         this.ds = ds;
         this.exchangeTime = exchangeTime;
         this.fileEx = clientExchangeFile;
         this.automaticRET = automaticACK;
         this.fragments = new HashMap<Integer,byte[]>();
         
+        this.client_username = client_username;
         Random rand = new Random();
         fail = rand.nextInt(10);
         failed = false;
@@ -124,11 +126,17 @@ public class ClientUDPTransmission extends Thread {
                 case PDU.REQUEST:    
                     String[] s = PDU.readRequest(packet);
                     String banda = s[0];
-                    String filename = "music/"+s[1];
+                    
+                    File dir = new File(this.client_username);
+                      if(!dir.exists())
+                          dir.mkdir();
+                     
+                    String filename = s[1];
+                    file = new File(dir, filename);
+                    
                     windowS = 2; // slow Start
                     balance = (int)windowS;
                     
-                    file = new File(filename);
                     
                      long filesize = file.length();
                      fragmentDataSize = PDU.MAX_SIZE - PDU.EXTENDED_HEADER_SIZE;
@@ -140,7 +148,7 @@ public class ClientUDPTransmission extends Thread {
                     System.out.println("Max data on fragment:" +fragmentDataSize);
                     System.out.println("LastFragment size:" +lastFragmentSize);
 
-                    fis = new FileInputStream(filename);
+                    fis = new FileInputStream(dir + "/" +filename);
                     
                     for(packetIndex = 0; packetIndex < windowS; packetIndex++){
                         int fragmentSize = packetIndex == (nfragments - 1) ? 

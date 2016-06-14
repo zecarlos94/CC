@@ -11,10 +11,6 @@ import java.util.logging.Logger;
  */
 // package ccprojet;
 
-/**
- *
- * @author gustavo
- */
 
 public class PDU {
 
@@ -97,7 +93,6 @@ public class PDU {
             r[i++] = REGISTER; // type REGISTER      
             
             // teste
-            System.out.println("RegPDU data a enviar: " + s);
             
             for(int j= 0;j < s.length(); i++,j++)
                 r[i] = (byte) s.charAt(j);
@@ -118,7 +113,6 @@ public class PDU {
             byte[] r = new byte[MAX_SIZE];
             int i = 0; r[i++] = 0; r[i++] = 0; r[i++] = MESSAGE;
               // teste
-            System.out.println("RegPDU data a enviar: " + s);
             for(int j= 0;j < s.length(); i++,j++)
                 r[i] = (byte) s.charAt(j);
          
@@ -149,7 +143,6 @@ public class PDU {
             r[i++] = CONSULT_REQUEST; // type REGISTER      
             
             // teste
-            System.out.println("ConsultRequestPDU data a enviar: " + s);
             
             for(int j= 0;j < s.length(); i++,j++)
                 r[i] = (byte) s.charAt(j);
@@ -194,6 +187,7 @@ public class PDU {
             return r;
         }
         /*
+            tipo 0 se n encontrou o ficheiro senao 1
             String[3] has {id,ip,port}
         */
         public static byte[] sendConsultResponse(int tipo,int numeroHosts,String id,String ip, int port){
@@ -220,10 +214,6 @@ public class PDU {
             
             r[i++] = (byte)tipo;
             r[i++] = (byte)numeroHosts; 
-            
-            
-            // teste
-            // System.out.println("ConsultResponsePDU data a enviar: " + s);
             
             for(int j= 0;j < s.length(); i++,j++)
                 r[i] = (byte) s.charAt(j);
